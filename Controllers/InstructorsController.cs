@@ -145,19 +145,48 @@ namespace StudentExercisesMVC.Controllers
         // GET: Instructors/Edit/5
         public ActionResult Edit(int id)
         {
-            return View();
+            var instructor = GetInstructorById(id);
+            return View(instructor);
         }
 
         // POST: Instructors/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public ActionResult Edit(int id, Instructor instructor)
         {
             try
             {
-                // TODO: Add update logic here
+                using (SqlConnection conn = Connection)
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @" UPDATE Instructor
+                                           SET FirstName = @FirstName, 
+                                           LastName = @LastName,
+                                           SlackHandle = @SlackHandle,
+                                           CohortId = @CohortId,
+                                           Specialty = @Specialty
+                                           WHERE Id = @id";
 
-                return RedirectToAction(nameof(Index));
+                        cmd.Parameters.Add(new SqlParameter("@FirstName", instructor.FirstName));
+                        cmd.Parameters.Add(new SqlParameter("@LastName", instructor.LastName));
+                        cmd.Parameters.Add(new SqlParameter("@SlackHandle", instructor.SlackHandle));
+                        cmd.Parameters.Add(new SqlParameter("@CohortId", instructor.CohortId));
+                        cmd.Parameters.Add(new SqlParameter("@Specialty", instructor.Specialty));
+                        cmd.Parameters.Add(new SqlParameter("@id", instructor.Id));
+
+                        var rowsaffected = cmd.ExecuteNonQuery();
+
+                        if (rowsaffected < 1)
+                        {
+                            return NotFound();
+
+                        }
+                    }
+                }
+
+                    return RedirectToAction(nameof(Index));
             }
             catch
             {
@@ -187,5 +216,40 @@ namespace StudentExercisesMVC.Controllers
                 return View();
             }
         }
+
+
+        private Instructor GetInstructorById(int id)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Id, FirstName, LastName, CohortId, Specialty, SlackHandle FROM Instructor WHERE Id = @id";
+
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+
+                    var reader = cmd.ExecuteReader();
+                    Instructor instructor = null;
+
+                    if (reader.Read())
+                    {
+                        instructor = new Instructor()
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                            LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                            SlackHandle = reader.GetString(reader.GetOrdinal("SlackHandle")),
+                            CohortId = reader.GetInt32(reader.GetOrdinal("CohortId")),
+                            Specialty = reader.GetString(reader.GetOrdinal("Specialty"))
+                        };
+
+                    }
+                    reader.Close();
+                    return instructor;
+                }
+            }
+        }
+
     }
 }
